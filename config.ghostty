@@ -1,0 +1,24 @@
+# Theme
+theme = Gruvbox Light
+
+# Window
+macos-titlebar-style = tabs
+window-padding-x = 8
+window-padding-y = 4
+window-padding-balance = true
+unfocused-split-opacity = 0.6
+
+# Font
+font-family = JetBrainsMono Font
+font-thicken = true
+font-thicken-strength = 1
+adjust-cell-height = 1
+
+# Cursor
+cursor-style = block
+
+# Mouse
+mouse-hide-while-typing = true
+
+# Notifications
+desktop-notifications = true

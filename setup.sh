@@ -4,8 +4,9 @@
 #  Installs: Zsh, Homebrew, NVM, Node (latest), pnpm, rbenv, Ruby,
 #            Ruby on Rails, Neovim (vim aliased) + LazyVim, Python 3,
 #            Docker, GitHub CLI, eza, Raycast, Superwhisper, Arc, Chrome, Spotify,
-#            Slack, Notion Calendar, Claude, Codex
-#  Copies:   wallpapers/ → ~/Downloads/Wallpaper
+#            Slack, Notion Calendar, Claude, Codex, Ghostty
+#  Copies:   config.ghostty → ~/Library/Application Support/com.mitchellh.ghostty/
+#            wallpapers/ → ~/Downloads/Wallpaper
 # =============================================================================
 
 set -euo pipefail
@@ -120,6 +121,39 @@ install_desktop_app slack 'Slack.app' 'Slack' 'https://slack.com/downloads/mac'
 install_desktop_app notion-calendar 'Notion Calendar.app' 'Notion Calendar' 'https://www.notion.com/product/calendar/download'
 install_desktop_app claude 'Claude.app' 'Claude' 'https://claude.com/download'
 install_desktop_app codex-app 'Codex.app' 'Codex' 'https://openai.com/codex'
+
+# Install Ghostty and copy the saved config.
+copy_ghostty_config() {
+  local source="$1" destination="$2" backup
+  if [[ ! -f "$source" ]]; then
+    warn "Ghostty config not found: $source"
+    warn "Copy config.ghostty from the repository to $destination manually."
+    return 0
+  fi
+  mkdir -p "$(dirname "$destination")"
+  if cmp -s "$source" "$destination"; then
+    ok "Ghostty config is already in place."
+    return 0
+  fi
+  if [[ -e "$destination" || -L "$destination" ]]; then
+    backup="$(mktemp "${destination}.backup.XXXXXX")"
+    cp -p "$destination" "$backup"
+    ok "Saved the previous Ghostty config to $backup."
+  fi
+  cp "$source" "$destination"
+  ok "Copied Ghostty config to $destination."
+}
+
+log "Ghostty"
+if [[ -d /Applications/Ghostty.app || -d "$HOME/Applications/Ghostty.app" ]] ||
+   brew list --cask ghostty &>/dev/null || brew install --cask ghostty; then
+  copy_ghostty_config "$SCRIPT_DIR/config.ghostty" \
+    "$HOME/Library/Application Support/com.mitchellh.ghostty/config.ghostty"
+else
+  warn "Ghostty installation failed. Install it manually: https://ghostty.org/download"
+  warn "Then run this script again to copy the Ghostty config."
+  MANUAL_APPS+=("Ghostty: https://ghostty.org/download; run this script again to copy the config.")
+fi
 
 # ── 4. NVM ────────────────────────────────────────────────────────────────────
 log "NVM"
@@ -433,7 +467,7 @@ echo -e "  • ${BOLD}Wallpapers${RESET}  — pick one from ~/Downloads/Wallpape
 echo ""
 
 log "Desktop app setup"
-warn "Open Raycast, Superwhisper, Arc, Google Chrome, Spotify, Slack, Notion Calendar, Claude, and Codex to complete setup."
+warn "Open Raycast, Superwhisper, Arc, Google Chrome, Spotify, Slack, Notion Calendar, Claude, Codex, and Ghostty to complete setup."
 warn "Approve macOS permission requests and sign in where required."
 # The default macOS Bash can treat an empty array as unset with set -u.
 if [[ ${MANUAL_APPS[@]+set} ]]; then
