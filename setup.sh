@@ -3,7 +3,9 @@
 #  macOS Dev Environment Setup Script
 #  Installs: Zsh, Homebrew, NVM, Node (latest), pnpm, rbenv, Ruby,
 #            Ruby on Rails, Neovim (vim aliased) + LazyVim, Python 3,
-#            Docker, GitHub CLI, eza, Raycast, Superwhisper, Arc, Chrome, Spotify
+#            Docker, GitHub CLI, eza, Raycast, Superwhisper, Arc, Chrome, Spotify,
+#            Slack, Notion Calendar, Claude, Codex
+#  Copies:   wallpapers/ → ~/Downloads/Wallpaper
 # =============================================================================
 
 set -euo pipefail
@@ -18,6 +20,7 @@ warn() { echo -e "${YELLOW}⚠${RESET}  $*"; }
 die()  { echo -e "${RED}✖${RESET}  $*" >&2; exit 1; }
 
 ZSHRC="$HOME/.zshrc"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 append_if_missing() {
   local line="$1"
@@ -113,6 +116,10 @@ install_desktop_app superwhisper 'superwhisper.app' 'Superwhisper' 'https://supe
 install_desktop_app arc 'Arc.app' 'Arc' 'https://arc.net/'
 install_desktop_app google-chrome 'Google Chrome.app' 'Google Chrome' 'https://www.google.com/intl/en_au/chrome'
 install_desktop_app spotify 'Spotify.app' 'Spotify' 'https://spotify.com/'
+install_desktop_app slack 'Slack.app' 'Slack' 'https://slack.com/downloads/mac'
+install_desktop_app notion-calendar 'Notion Calendar.app' 'Notion Calendar' 'https://www.notion.com/product/calendar/download'
+install_desktop_app claude 'Claude.app' 'Claude' 'https://claude.com/download'
+install_desktop_app codex-app 'Codex.app' 'Codex' 'https://openai.com/codex'
 
 # ── 4. NVM ────────────────────────────────────────────────────────────────────
 log "NVM"
@@ -354,6 +361,30 @@ else
   ok "GitHub CLI $(gh --version | head -1) installed."
 fi
 
+# ── 20. Wallpapers ────────────────────────────────────────────────────────────
+log "Wallpapers"
+WALLPAPER_SRC="$SCRIPT_DIR/wallpapers"
+WALLPAPER_DEST="$HOME/Downloads/Wallpaper"
+if [[ -d "$WALLPAPER_SRC" ]]; then
+  mkdir -p "$WALLPAPER_DEST"
+  WALLPAPER_COUNT=0
+  for f in "$WALLPAPER_SRC"/*; do
+    [[ -f "$f" ]] || continue
+    if [[ -f "$WALLPAPER_DEST/$(basename "$f")" ]]; then
+      continue
+    fi
+    cp "$f" "$WALLPAPER_DEST/"
+    WALLPAPER_COUNT=$((WALLPAPER_COUNT + 1))
+  done
+  if [[ "$WALLPAPER_COUNT" -gt 0 ]]; then
+    ok "Copied $WALLPAPER_COUNT wallpaper(s) to $WALLPAPER_DEST."
+  else
+    ok "Wallpapers already present in $WALLPAPER_DEST."
+  fi
+else
+  warn "No wallpapers directory found at $WALLPAPER_SRC — skipping."
+fi
+
 # ── General aliases & env vars ────────────────────────────────────────────────
 log "General aliases & env vars"
 append_if_missing 'export PATH="$HOME/.local/bin:$HOME/.opencode/bin:$PATH"'
@@ -398,10 +429,11 @@ echo -e "  • ${BOLD}nvim${RESET}        — run once to let LazyVim bootstrap 
 echo -e "  • ${BOLD}Python${RESET}      — virtualenvs: ${BOLD}python3 -m venv .venv${RESET}"
 echo -e "  • ${BOLD}claude${RESET}      — run in a project dir; authenticate on first launch"
 echo -e "  • ${BOLD}opencode${RESET}    — run in a project dir; use /connect to add your LLM key"
+echo -e "  • ${BOLD}Wallpapers${RESET}  — pick one from ~/Downloads/Wallpaper in System Settings → Wallpaper"
 echo ""
 
 log "Desktop app setup"
-warn "Open Raycast, Superwhisper, Arc, Google Chrome, and Spotify to complete setup."
+warn "Open Raycast, Superwhisper, Arc, Google Chrome, Spotify, Slack, Notion Calendar, Claude, and Codex to complete setup."
 warn "Approve macOS permission requests and sign in where required."
 # The default macOS Bash can treat an empty array as unset with set -u.
 if [[ ${MANUAL_APPS[@]+set} ]]; then
