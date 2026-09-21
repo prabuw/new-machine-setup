@@ -1,0 +1,95 @@
+"$schema" = 'https://starship.rs/config-schema.json'
+
+# Minimal, low-colour prompt. Previous powerline version saved as starship.toml.bak-colourful
+format = """
+$username\
+$directory\
+$git_branch\
+$git_status\
+$nodejs\
+$bun\
+$python\
+$golang\
+$rust\
+$time\
+$cmd_duration\
+$line_break\
+$character"""
+
+palette = 'muted'
+
+[username]
+show_always = true
+style_user = "subtext0"
+style_root = "red"
+format = '[$user]($style) '
+
+[directory]
+style = "bold text"
+format = "[$path]($style) "
+truncation_length = 3
+truncation_symbol = "…/"
+
+[git_branch]
+symbol = ""
+style = "subtext0"
+format = '[$symbol $branch]($style) '
+
+[git_status]
+style = "peach"
+format = '([$all_status$ahead_behind]($style) )'
+
+[nodejs]
+symbol = ""
+style = "overlay1"
+format = '[$symbol $version]($style) '
+
+[bun]
+symbol = ""
+style = "overlay1"
+format = '[$symbol $version]($style) '
+
+[python]
+symbol = ""
+style = "overlay1"
+format = '[$symbol $version(\($virtualenv\))]($style) '
+
+[golang]
+symbol = ""
+style = "overlay1"
+format = '[$symbol $version]($style) '
+
+[rust]
+symbol = ""
+style = "overlay1"
+format = '[$symbol $version]($style) '
+
+[time]
+disabled = false
+time_format = "%R"
+style = "overlay0"
+format = '[$time]($style) '
+
+[cmd_duration]
+show_milliseconds = false
+style = "overlay0"
+format = '[took $duration]($style) '
+min_time_to_notify = 45000
+show_notifications = true
+
+[line_break]
+disabled = true
+
+[character]
+success_symbol = '[❯](bold green)'
+error_symbol = '[❯](bold red)'
+vimcmd_symbol = '[❮](bold green)'
+
+[palettes.muted]
+text = "#cdd6f4"
+subtext0 = "#a6adc8"
+overlay1 = "#7f849c"
+overlay0 = "#6c7086"
+peach = "#fab387"
+green = "#a6e3a1"
+red = "#f38ba8"

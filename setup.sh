@@ -6,7 +6,10 @@
 #            Docker, GitHub CLI, eza, Raycast, Superwhisper, Arc, Chrome, Spotify,
 #            Slack, Notion Calendar, Claude, Codex, Ghostty
 #  Copies:   config.ghostty → ~/Library/Application Support/com.mitchellh.ghostty/
+#            starship.toml → ~/.config/starship.toml
 #            wallpapers/ → ~/Downloads/Wallpaper
+#  Sets:     macOS preferences (keyboard, scrolling, Dock, Finder, menu bar,
+#            shortcuts, firewall, default browser). Manual leftovers: TODO.md
 # =============================================================================
 
 set -euo pipefail
@@ -122,32 +125,38 @@ install_desktop_app notion-calendar 'Notion Calendar.app' 'Notion Calendar' 'htt
 install_desktop_app claude 'Claude.app' 'Claude' 'https://claude.com/download'
 install_desktop_app codex-app 'Codex.app' 'Codex' 'https://openai.com/codex'
 
-# Install Ghostty and copy the saved config.
-copy_ghostty_config() {
-  local source="$1" destination="$2" backup
+# Copy a config saved in this repository into place, backing up whatever was there.
+copy_saved_config() {
+  local name="$1" source="$2" destination="$3" backup
+
   if [[ ! -f "$source" ]]; then
-    warn "Ghostty config not found: $source"
-    warn "Copy config.ghostty from the repository to $destination manually."
+    warn "$name config not found: $source"
+    warn "Copy $(basename "$source") from the repository to $destination manually."
     return 0
   fi
+
   mkdir -p "$(dirname "$destination")"
+
   if cmp -s "$source" "$destination"; then
-    ok "Ghostty config is already in place."
+    ok "$name config is already in place."
     return 0
   fi
+
   if [[ -e "$destination" || -L "$destination" ]]; then
     backup="$(mktemp "${destination}.backup.XXXXXX")"
     cp -p "$destination" "$backup"
-    ok "Saved the previous Ghostty config to $backup."
+    ok "Saved the previous $name config to $backup."
   fi
+
   cp "$source" "$destination"
-  ok "Copied Ghostty config to $destination."
+  ok "Copied $name config to $destination."
 }
 
+# Install Ghostty and copy the saved config.
 log "Ghostty"
 if [[ -d /Applications/Ghostty.app || -d "$HOME/Applications/Ghostty.app" ]] ||
    brew list --cask ghostty &>/dev/null || brew install --cask ghostty; then
-  copy_ghostty_config "$SCRIPT_DIR/config.ghostty" \
+  copy_saved_config "Ghostty" "$SCRIPT_DIR/config.ghostty" \
     "$HOME/Library/Application Support/com.mitchellh.ghostty/config.ghostty"
 else
   warn "Ghostty installation failed. Install it manually: https://ghostty.org/download"
@@ -366,15 +375,7 @@ else
 fi
 # Init line must be last in .zshrc to take effect — check and append
 append_if_missing 'eval "$(starship init zsh)"'
-# Apply Catppuccin Powerline preset
-STARSHIP_CFG="$HOME/.config/starship.toml"
-if [[ -f "$STARSHIP_CFG" ]]; then
-  ok "Starship config already exists at $STARSHIP_CFG — skipping preset."
-else
-  mkdir -p "$HOME/.config"
-  starship preset catppuccin-powerline -o "$STARSHIP_CFG"
-  ok "Catppuccin Powerline preset written to $STARSHIP_CFG."
-fi
+copy_saved_config "Starship" "$SCRIPT_DIR/starship.toml" "$HOME/.config/starship.toml"
 
 # ── 18. Docker ───────────────────────────────────────────────────────────────
 log "Docker"
@@ -419,14 +420,86 @@ else
   warn "No wallpapers directory found at $WALLPAPER_SRC — skipping."
 fi
 
+# ── 21. macOS preferences ────────────────────────────────────────────────────
+log "macOS preferences"
+
+defaults write -g KeyRepeat -int 2
+defaults write -g InitialKeyRepeat -int 15
+defaults write -g com.apple.swipescrolldirection -bool false
+defaults write -g AppleICUForce24HourTime -bool true
+defaults write -g AppleInterfaceStyleSwitchesAutomatically -bool true
+ok "Fast key repeat, natural scrolling off, 24-hour time and automatic appearance set."
+
+defaults write com.apple.finder FXPreferredViewStyle -string Nlsv
+defaults write com.apple.WindowManager EnableTiledWindowMargins -bool false
+defaults write com.apple.menuextra.clock ShowSeconds -bool true
+defaults write com.apple.menuextra.clock ShowDate -int 1
+defaults -currentHost write com.apple.controlcenter BatteryShowPercentage -bool true
+ok "Finder list view, tiled windows without margins, clock seconds and battery percentage set."
+
+# Raycast owns ⌘Space, and ⌃Space / ⌃⌥Space are freed up for editors and terminals.
+SPOTLIGHT_SEARCH_HOTKEY=64
+PREVIOUS_INPUT_SOURCE_HOTKEY=60
+NEXT_INPUT_SOURCE_HOTKEY=61
+for hotkey in "$SPOTLIGHT_SEARCH_HOTKEY" "$PREVIOUS_INPUT_SOURCE_HOTKEY" "$NEXT_INPUT_SOURCE_HOTKEY"; do
+  defaults write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "$hotkey" \
+    '<dict><key>enabled</key><false/></dict>'
+done
+/System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u
+ok "Spotlight and input source keyboard shortcuts disabled."
+
+defaults write com.apple.dock orientation -string right
+defaults write com.apple.dock autohide -bool true
+command -v dockutil &>/dev/null || brew install dockutil
+DOCK_APPS=('Arc' 'Slack' 'Notion Calendar' 'Ghostty' 'Spotify')
+# Safari in the Dock means Apple's stock layout is still there. Once it is gone the
+# Dock has been arranged by hand, and a re-run must not wipe that arrangement.
+if dockutil --find Safari &>/dev/null; then
+  dockutil --remove all --no-restart &>/dev/null
+
+  for dock_app in "${DOCK_APPS[@]}"; do
+    if [[ -d "/Applications/$dock_app.app" ]]; then
+      dockutil --add "/Applications/$dock_app.app" --no-restart &>/dev/null
+    else
+      warn "$dock_app is not installed, so it was left out of the Dock."
+    fi
+  done
+
+  ok "Dock rebuilt with: ${DOCK_APPS[*]}."
+else
+  ok "Dock has already been arranged — leaving its apps alone."
+fi
+
+if sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on &>/dev/null; then
+  ok "Firewall enabled."
+else
+  warn "Could not enable the firewall. Turn it on in System Settings → Network → Firewall."
+fi
+
+command -v defaultbrowser &>/dev/null || brew install defaultbrowser
+ARC_BROWSER_HANDLER='browser'
+if defaultbrowser | grep -qx "\* $ARC_BROWSER_HANDLER"; then
+  ok "Arc is already the default browser."
+elif defaultbrowser "$ARC_BROWSER_HANDLER" &>/dev/null; then
+  warn "Confirm the 'Use Arc' dialog to finish setting the default browser."
+else
+  warn "Could not set Arc as the default browser. Open Arc once, then run this script again."
+fi
+
+for preference_host_process in Dock Finder SystemUIServer ControlCenter; do
+  killall "$preference_host_process" &>/dev/null || true
+done
+warn "Log out and back in for key repeat, scroll direction and appearance to take effect."
+
 # ── General aliases & env vars ────────────────────────────────────────────────
 log "General aliases & env vars"
 append_if_missing 'export PATH="$HOME/.local/bin:$HOME/.opencode/bin:$PATH"'
 append_if_missing 'alias cls="clear"'
 append_if_missing 'alias cc="claude"'
+append_if_missing 'alias code="webstorm"'
 append_if_missing 'export EDITOR="nvim"'
 append_if_missing 'export VISUAL="nvim"'
-ok "'cls', 'cc' aliases and EDITOR/VISUAL env vars set in ~/.zshrc."
+ok "'cls', 'cc', 'code' aliases and EDITOR/VISUAL env vars set in ~/.zshrc."
 
 # ── Git aliases ───────────────────────────────────────────────────────────────
 log "Git aliases"
@@ -447,7 +520,16 @@ GCO_FUNC='gco() {
   fi
 }'
 grep -qxF 'gco() {' "$ZSHRC" 2>/dev/null || echo "$GCO_FUNC" >> "$ZSHRC"
-ok "Git aliases added to ~/.zshrc (gst, gpl, gco, gl, gpf, gce)."
+
+GHO_FUNC='# gho: open this branch'"'"'s PR on GitHub, or the repo at this branch if there is no PR yet
+gho() {
+  gh pr view --web 2>/dev/null && return
+  local branch; branch="$(git branch --show-current 2>/dev/null)"
+  local -a at; [[ -n "$branch" ]] && at=(--branch "$branch")
+  gh repo view --web "${at[@]}"
+}'
+grep -qxF 'gho() {' "$ZSHRC" 2>/dev/null || echo "$GHO_FUNC" >> "$ZSHRC"
+ok "Git aliases added to ~/.zshrc (gst, gpl, gco, gho, gl, gpf, gce)."
 
 # ── Done ─────────────────────────────────────────────────────────────────────
 echo ""
@@ -464,6 +546,7 @@ echo -e "  • ${BOLD}Python${RESET}      — virtualenvs: ${BOLD}python3 -m ven
 echo -e "  • ${BOLD}claude${RESET}      — run in a project dir; authenticate on first launch"
 echo -e "  • ${BOLD}opencode${RESET}    — run in a project dir; use /connect to add your LLM key"
 echo -e "  • ${BOLD}Wallpapers${RESET}  — pick one from ~/Downloads/Wallpaper in System Settings → Wallpaper"
+echo -e "  • ${BOLD}TODO.md${RESET}     — work through the settings that cannot be scripted"
 echo ""
 
 log "Desktop app setup"

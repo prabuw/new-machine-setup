@@ -1,5 +1,6 @@
 # Theme
-theme = Gruvbox Light
+#theme = Gruvbox Dark
+theme = TokyoNight Moon
 
 # Window
 macos-titlebar-style = tabs
